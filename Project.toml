@@ -1,7 +1,7 @@
 name = "PairedArrays"
 uuid = "26e58924-7088-4c52-a09b-339225018a32"
 authors = ["Éric Thiébaut <eric.thiebaut@univ-lyon1.fr> and contributors"]
-version = "0.1.0"
+version = "0.1.1"
 
 [compat]
 julia = "1"
