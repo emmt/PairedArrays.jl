@@ -115,8 +115,8 @@ function Base.sizehint!(A::PairedArray, len::Integer)
 end
 
 # Accelarate some operations.
-Base.broadcasted(::typeof(first), A::PairedArray) = A.keys
-Base.broadcasted(::typeof(last), A::PairedArray) = A.vals
+Base.Broadcast.broadcasted(::typeof(first), A::PairedArray) = A.keys
+Base.Broadcast.broadcasted(::typeof(last), A::PairedArray) = A.vals
 Base.map(::typeof(first), A::PairedArray) = A.keys
 Base.map(::typeof(last), A::PairedArray) = A.vals
 
