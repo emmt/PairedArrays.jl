@@ -7,10 +7,11 @@ export PairedArray
 
 builds an array `A` such that the syntax `A[i]` yields the pair `keys[i] =>
 vals[i]` while `A[i] = key => val` is equivalent to `keys[i] = key` and
-`vals[i] = val`. in fact, the syntax `A[i] = x` is supported for any `x`
-that can be converted to an instance of `Pair{K,V}`.
+`vals[i] = val`. In fact, the syntax `A[i] = x` is supported for any `x` that
+can be converted to an instance of `Pair{K,V}`. Setting elements of a paired
+array requires that `K` and `V` be both writable.
 
- A paired array is as fast but has less storage requirements (because data
+A paired array is as fast but has less storage requirements (because data
 alignment constraints are relaxed) than an array of pairs which could be built
 as follows:
 
