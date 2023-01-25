@@ -40,6 +40,8 @@ using Test
     @test push!(B, A[end]) == A
     A[2] = (:z => 42)
     @test A[2] == (:z => 42)
+    push!(A, :w => 0x0ff) # push so as to force conversion
+    @test A[end] == (:w => 255)
     # Now try with Cartesian indices. We use views to make sure that Cartesian
     # indexing is used.
     keys = view(rand(Int16, 2,3,4), :, 2, :)
