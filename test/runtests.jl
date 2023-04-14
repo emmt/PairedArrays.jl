@@ -69,7 +69,7 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
     @test A[1] === (:x => 1)
     @test A[2] === (:y => 2)
     @test A[3] === (:z => 3)
-    A[begin] = MyPair(:a,11)
+    A[1] = MyPair(:a,11)
     A[2]     = MyPair(:b,12)
     A[end]   = MyPair(:c,13)
     @test A[1] === (:a => 11)
