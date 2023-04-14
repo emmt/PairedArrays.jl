@@ -91,21 +91,30 @@ function PairedArray{K,V}(A::AbstractArray{<:Pair}) where {K,V}
     return B
 end
 
+# Build paired arrays from nothing or 0-tuple.
 PairedVector() = throw(ArgumentError("types K and V of keys and values must be specified"))
 PairedVector{K}() where {K} = throw(ArgumentError("type V of values must be specified"))
 PairedVector{K,V}() where {K,V} = PairedArray(Vector{K}(undef,0), Vector{V}(undef,0))
-PairedArray{K,V}() where {K,V} = PairedVector{K,V}()
-PairedArray{K,V,1}() where {K,V} = PairedVector{K,V}()
+for X in (:PairedArray, :PairedVector)
+    @eval $X(::Tuple{}) = PairedVector()
+    @eval $X{K}(::Tuple{}) where {K} = PairedVector{K}()
+    @eval $X{K,V}(::Tuple{}) where {K,V} = PairedVector{K,V}()
+    if X === :PairedArray
+        @eval $X() = PairedVector()
+        @eval $X{K}() where {K} = PairedVector{K}()
+        @eval $X{K,V}() where {K,V} = PairedVector{K,V}()
+        @eval $X{K,V,1}() where {K,V} = PairedVector{K,V}()
+    end
+end
 
-PairedArray(pairs::Tuple{}) = PairedVector()
-PairedArray{K}(pairs::Tuple{}) where {K} = PairedVector{K}()
-PairedArray{K,V}(pairs::Tuple{}) where {K,V} = PairedVector{K,V}()
-PairedArray{K,V,1}(pairs::Tuple{}) where {K,V} = PairedVector{K,V}()
-
-PairedArray(pairs::Vararg{Pair{K,V}}) where {K,V} = PairedVector{K,V}(pairs)
-PairedArray(pairs::Tuple{Vararg{Pair{K,V}}}) where {K,V} = PairedVector{K,V}(pairs)
-PairedArray{K}(pairs::Vararg{Pair{<:Any,V}}) where {K,V} = PairedVector{K,V}(pairs)
+# Build paired arrays from tuples.
+for X in (:PairedArray, :PairedVector)
+    @eval $X(pairs::Vararg{Pair{K,V}}) where {K,V} = PairedVector{K,V}(pairs)
+    @eval $X(pairs::Tuple{Vararg{Pair{K,V}}}) where {K,V} = PairedVector{K,V}(pairs)
+    @eval $X{K}(pairs::Vararg{Pair{<:Any,V}}) where {K,V} = PairedVector{K,V}(pairs)
+end
 PairedArray{K,V}(pairs::Tuple{Vararg{Pair}}) where {K,V} = PairedVector{K,V}(pairs)
+PairedArray{K,V,1}(pairs::Tuple{Vararg{Pair}}) where {K,V} = PairedVector{K,V}(pairs)
 function PairedVector{K,V}(A::NTuple{N,Pair}) where {K,V,N}
     B = PairedArray(Vector{K}(undef, N), Vector{V}(undef, N))
     @inbounds for i in 1:N

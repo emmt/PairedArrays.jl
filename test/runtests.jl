@@ -109,7 +109,17 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
     end
 
     # Conversions.
+    K, V, N = _keytype(eltype(A)), _valtype(eltype(A)), ndims(A)
+    @test PairedArrays.pair(K,V,first(A)) === first(A)
+    @test PairedArrays.pair(Int16,Int16,first(A)) == first(A)
+    @test PairedArray(A) === A
+    @test PairedArray{K}(A) === A
+    @test PairedArray{K,V}(A) === A
+    @test PairedArray{K,V,N}(A) === A
     @test convert(PairedArray, A) === A
+    @test convert(PairedArray{K}, A) === A
+    @test convert(PairedArray{K,V}, A) === A
+    @test convert(PairedArray{K,V,N}, A) === A
     B = convert(PairedArray{Int}, A)
     @test B isa PairedArray{Int,_valtype(eltype(A)),ndims(A)}
     @test B.keys !== A.keys && B.vals !== A.vals
@@ -147,17 +157,36 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
     @test A isa PairedVector{Symbol,Int}
     @test A == C
 
-    @test_throws UndefVarError PairedArray()
-    @test_throws UndefVarError PairedArray{Symbol}()
+    # Build from nothing
+    @test_throws ArgumentError PairedArray()
+    @test_throws ArgumentError PairedVector()
+    @test_throws ArgumentError PairedArray{Symbol}()
+    @test_throws ArgumentError PairedVector{Symbol}()
     A = PairedArray{Symbol,Int}()
     @test A isa PairedArray{Symbol,Int,1}
     @test length(A) == 0
     A = PairedArray{Symbol,Int,1}()
     @test A isa PairedArray{Symbol,Int,1}
     @test length(A) == 0
-    @test_throws ArgumentError PairedVector()
-    @test_throws ArgumentError PairedVector{Symbol}()
     A = PairedVector{Symbol,Int}()
+    @test A isa PairedVector{Symbol,Int}
+    @test length(A) == 0
+    for x in B; push!(A, x); end
+    @test A == C
+
+    # Build from 0-tuple.
+    x = ()
+    @test_throws ArgumentError PairedArray(x)
+    @test_throws ArgumentError PairedVector(x)
+    @test_throws ArgumentError PairedArray{Symbol}(x)
+    @test_throws ArgumentError PairedVector{Symbol}(x)
+    A = PairedArray{Symbol,Int}(x)
+    @test A isa PairedArray{Symbol,Int,1}
+    @test length(A) == 0
+    A = PairedArray{Symbol,Int,1}(x)
+    @test A isa PairedArray{Symbol,Int,1}
+    @test length(A) == 0
+    A = PairedVector{Symbol,Int}(x)
     @test A isa PairedVector{Symbol,Int}
     @test length(A) == 0
     for x in B; push!(A, x); end
