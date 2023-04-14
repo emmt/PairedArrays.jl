@@ -1,6 +1,9 @@
 module PairedArrays
 
-export PairedArray
+export
+    PairedArray,
+    PairedVector,
+    PairedMatrix
 
 """
     PairedArray(keys, vals) -> A
@@ -22,27 +25,29 @@ may or may not work depending on the types of the arrays `keys` and `vals`.
 
 """
 struct PairedArray{K,V,N,I<:IndexStyle,
-                   KT<:AbstractArray{K,N},
-                   VT<:AbstractArray{V,N}} <: AbstractArray{Pair{K,V},N}
-    keys::KT
-    vals::VT
-    function PairedArray(keys::KT, vals::VT) where {K,V,N,
-                                                    KT<:AbstractArray{K,N},
-                                                    VT<:AbstractArray{V,N}}
-        axes(keys) == axes(vals) || throw(ArgumentError(
+                   KA<:AbstractArray{K,N},
+                   VA<:AbstractArray{V,N}} <: AbstractArray{Pair{K,V},N}
+    keys::KA
+    vals::VA
+    function PairedArray(keys::KA, vals::VA) where {K,V,N,
+                                                    KA<:AbstractArray{K,N},
+                                                    VA<:AbstractArray{V,N}}
+        axes(keys) == axes(vals) || throw(DimensionMismatch(
             "keys and values must have the same indices"))
         I = typeof(IndexStyle(keys, vals))
-        new{K,V,N,I,KT,VT}(keys, vals)
+        return new{K,V,N,I,KA,VA}(keys, vals)
     end
 end
 
+const PairedVector{K,V,I,KA,VA} = PairedArray{K,V,1,I,KA,VA}
+const PairedMatrix{K,V,I,KA,VA} = PairedArray{K,V,2,I,KA,VA}
 Base.IndexStyle(::Type{<:PairedArray{K,V,N,I}}) where {K,V,N,I} = I()
 Base.length(A::PairedArray) = length(A.keys)
 Base.size(A::PairedArray) = size(A.keys)
 Base.axes(A::PairedArray) = axes(A.keys)
 
-const PairedArrayLinear{K,V,N,KT,VT} = PairedArray{K,V,N,IndexLinear,KT,VT}
-const PairedArrayCartesian{K,V,N,KT,VT} = PairedArray{K,V,N,IndexCartesian,KT,VT}
+const PairedArrayLinear{K,V,N,KA,VA} = PairedArray{K,V,N,IndexLinear,KA,VA}
+const PairedArrayCartesian{K,V,N,KA,VA} = PairedArray{K,V,N,IndexCartesian,KA,VA}
 
 @inline function Base.getindex(A::PairedArrayLinear, i::Int)
     @boundscheck checkbounds(A, i)
