@@ -10,6 +10,11 @@ end
 PairedArrays.pair(::Type{K}, ::Type{V}, x::MyPair) where {K,V} =
     Pair{K,V}(x.key, x.val)
 
+_keytype(x::Pair) = _keytype(typeof(x))
+_valtype(x::Pair) = _valtype(typeof(x))
+_keytype(::Type{Pair{K,V}}) where {K,V} = K
+_valtype(::Type{Pair{K,V}}) where {K,V} = V
+
 @testset "PairedArrays.jl" begin
     # First try with linear indices.
     keys = [:a, :b, :c]
@@ -78,6 +83,7 @@ PairedArrays.pair(::Type{K}, ::Type{V}, x::MyPair) where {K,V} =
     vals = reshape(collect(1:length(keys)), size(keys))
     @inferred PairedArray(keys, vals)
     A = PairedArray(keys, vals)
+    @test A isa PairedMatrix{Int16,Int}
     @test ndims(A) == ndims(keys) == 2
     @test length(A) == length(keys)
     @test size(A) == size(keys)
@@ -102,6 +108,60 @@ PairedArrays.pair(::Type{K}, ::Type{V}, x::MyPair) where {K,V} =
         @test A[i,j] == (-i => -j)
     end
 
+    # Conversions.
+    @test convert(PairedArray, A) === A
+    B = convert(PairedArray{Int}, A)
+    @test B isa PairedArray{Int,_valtype(eltype(A)),ndims(A)}
+    @test B.keys !== A.keys && B.vals !== A.vals
+    @test B == A
+    B = convert(PairedArray{_keytype(eltype(A)),Int16}, A)
+    @test B isa PairedArray{_keytype(eltype(A)),Int16,ndims(A)}
+    @test B.keys !== A.keys && B.vals !== A.vals
+    @test B == A
+
+    # Copy constructor yields an independent copy.
+    B = copy(A)
+    @test B isa PairedArray{_keytype(eltype(A)),_valtype(eltype(A)),ndims(A)}
+    @test B == A
+    @test B.keys !== A.keys && B.vals !== A.vals
+    x = A[firstindex(A)]
+    @test B[firstindex(B)] == x
+    B[firstindex(B)] = (first(x) => (iszero(last(x)) ? one(last(x)) : zero(last(x))))
+    @test B[firstindex(B)] != x
+    @test A[firstindex(A)] == x
+
+    # Construction from collections of pairs.
+    B = (:x=>1, :y=>2, :z=>3)
+    C = collect(B)
+    D = (B[i] for i in eachindex(B))
+    A = PairedArray(B...)
+    @test A isa PairedVector{Symbol,Int}
+    @test A == C
+    A = PairedArray(B)
+    @test A isa PairedVector{Symbol,Int}
+    @test A == C
+    A = PairedArray(C)
+    @test A isa PairedVector{Symbol,Int}
+    @test A == C
+    A = PairedVector{Symbol,Int}(D)
+    @test A isa PairedVector{Symbol,Int}
+    @test A == C
+
+    @test_throws UndefVarError PairedArray()
+    @test_throws UndefVarError PairedArray{Symbol}()
+    A = PairedArray{Symbol,Int}()
+    @test A isa PairedArray{Symbol,Int,1}
+    @test length(A) == 0
+    A = PairedArray{Symbol,Int,1}()
+    @test A isa PairedArray{Symbol,Int,1}
+    @test length(A) == 0
+    @test_throws ArgumentError PairedVector()
+    @test_throws ArgumentError PairedVector{Symbol}()
+    A = PairedVector{Symbol,Int}()
+    @test A isa PairedVector{Symbol,Int}
+    @test length(A) == 0
+    for x in B; push!(A, x); end
+    @test A == C
 end
 
 end # module

@@ -43,6 +43,109 @@ end
 
 const PairedVector{K,V,I,KA,VA} = PairedArray{K,V,1,I,KA,VA}
 const PairedMatrix{K,V,I,KA,VA} = PairedArray{K,V,2,I,KA,VA}
+
+# Copy constructor.
+Base.copy(A::PairedArray) = PairedArray(copy(A.keys), copy(A.vals))
+
+# Conversion constructors. NOTE: A paired array cannot be partially converted.
+# Either exactly the same array or a new paired array with fresh pair of arrays
+# to store the contents is returned.
+PairedArray(A::PairedArray) = A
+
+PairedArray{K}(A::PairedArray{K}) where {K} = A
+PairedArray{K}(A::PairedArray{<:Any,V}) where {K,V} = PairedArray{K,V}(A)
+
+PairedArray{K,V}(A::PairedArray{K,V}) where {K,V} = A
+PairedArray{K,V}(A::PairedArray{<:Any,<:Any}) where {K,V} =
+    # If any of the key or value types are different, copy and convert the two
+    # arrays backing the storage of the keys and of the values.
+    PairedArray(copyto!(similar(A.keys, K), A.keys),
+                copyto!(similar(A.vals, V), A.vals))
+
+PairedArray{K,V,N}(A::PairedArray{K,V,N}) where {K,V,N} = A
+PairedArray{K,V,N}(A::PairedArray{<:Any,<:Any,N}) where {K,V,N} =
+    # Get rid of the N parameter.
+    PairedArray{K,V}(A)
+
+# Constructors for uninitialized contents.
+PairedArray{K,V}(::UndefInitializer, dims::Integer...) where {K,V} =
+    PairedArray{K,V}(undef, dims)
+PairedArray{K,V}(::UndefInitializer, dims::NTuple{N,Integer}) where {K,V,N} =
+    PairedArray{K,V,N}(undef, dims)
+PairedArray{K,V,N}(::UndefInitializer, dims::Integer...) where {K,V,N} =
+    PairedArray{K,V,N}(undef, dims)
+PairedArray{K,V,N}(::UndefInitializer, dims::NTuple{N,Integer}) where {K,V,N} =
+    PairedArray{K,V,N}(undef, convert(Dims{N}, dims)::Dims{N})
+PairedArray{K,V,N}(::UndefInitializer, dims::Dims{N}) where {K,V,N} =
+    PairedArray(Array{K,N}(undef, dims), Array{V,N}(undef, dims))
+
+# Conversions from collections of pairs.
+PairedArray(A::AbstractArray{Pair{K,V}}) where {K,V} = PairedArray{K,V}(A)
+PairedArray{K}(A::AbstractArray{Pair{<:Any,V}}) where {K,V} = PairedArray{K,V}(A)
+PairedArray{K,V,N}(A::AbstractArray{<:Pair,N}) where {K,V,N} = PairedArray{K,V}(A)
+function PairedArray{K,V}(A::AbstractArray{<:Pair}) where {K,V}
+    B = PairedArray(similar(A, K), similar(A, V))
+    @inbounds @simd for i in eachindex(A, B)
+        B[i] = A[i]
+    end
+    return B
+end
+
+PairedVector() = throw(ArgumentError("types K and V of keys and values must be specified"))
+PairedVector{K}() where {K} = throw(ArgumentError("type V of values must be specified"))
+PairedVector{K,V}() where {K,V} = PairedArray(Vector{K}(undef,0), Vector{V}(undef,0))
+PairedArray{K,V}() where {K,V} = PairedVector{K,V}()
+PairedArray{K,V,1}() where {K,V} = PairedVector{K,V}()
+
+PairedArray(pairs::Tuple{}) = PairedVector()
+PairedArray{K}(pairs::Tuple{}) where {K} = PairedVector{K}()
+PairedArray{K,V}(pairs::Tuple{}) where {K,V} = PairedVector{K,V}()
+PairedArray{K,V,1}(pairs::Tuple{}) where {K,V} = PairedVector{K,V}()
+
+PairedArray(pairs::Vararg{Pair{K,V}}) where {K,V} = PairedVector{K,V}(pairs)
+PairedArray(pairs::Tuple{Vararg{Pair{K,V}}}) where {K,V} = PairedVector{K,V}(pairs)
+PairedArray{K}(pairs::Vararg{Pair{<:Any,V}}) where {K,V} = PairedVector{K,V}(pairs)
+PairedArray{K,V}(pairs::Tuple{Vararg{Pair}}) where {K,V} = PairedVector{K,V}(pairs)
+function PairedVector{K,V}(A::NTuple{N,Pair}) where {K,V,N}
+    B = PairedArray(Vector{K}(undef, N), Vector{V}(undef, N))
+    @inbounds for i in 1:N
+        B[i] = A[i]
+    end
+    return B
+end
+
+PairedArray{K,V}(iter) where {K,V} = PairedVector{K,V}(iter)
+PairedVector{K,V}(iter) where {K,V} =
+    build(PairedVector{K,V}, Base.IteratorSize(iter), iter)
+function build(::Type{PairedVector{K,V}}, ::Base.SizeUnknown, iter) where {K,V}
+    B = PairedVector{K,V}()
+    for x in iter
+        push!(B, x)
+    end
+    return B
+end
+function build(::Type{PairedVector{K,V}}, ::Base.HasLength, iter) where {K,V}
+    len = length(iter)
+    B = PairedArray(Vector{K}(undef, len), Vector{V}(undef, len))
+    for (i,x) in enumerate(iter)
+        B[i] = x
+    end
+    return B
+end
+function build(::Type{PairedVector{K,V}}, ::Base.HasShape{N}, iter) where {K,V,N}
+    inds = axes(iter)
+    all(r -> first(r) == 1, inds) || throw(ArgumentError("only 1-based indices are allowed"))
+    dims = map(length, inds)
+    B = PairedArray(Array{K,N}(undef, dims), Array{V,N}(undef, dims))
+    for (i,x) in enumerate(iter)
+        B[i] = x
+    end
+    return B
+end
+
+Base.convert(::Type{T}, A::T) where {T<:PairedArray} = A
+Base.convert(::Type{T}, A) where {T<:PairedArray} = T(A)
+
 Base.IndexStyle(::Type{<:PairedArray{K,V,N,I}}) where {K,V,N,I} = I()
 Base.length(A::PairedArray) = length(A.keys)
 Base.size(A::PairedArray) = size(A.keys)
