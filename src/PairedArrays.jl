@@ -80,8 +80,8 @@ PairedArray{K,V,N}(::UndefInitializer, dims::Dims{N}) where {K,V,N} =
     PairedArray(Array{K,N}(undef, dims), Array{V,N}(undef, dims))
 
 # Conversions from collections of pairs.
-PairedArray(A::AbstractArray{Pair{K,V}}) where {K,V} = PairedArray{K,V}(A)
-PairedArray{K}(A::AbstractArray{Pair{<:Any,V}}) where {K,V} = PairedArray{K,V}(A)
+PairedArray(A::AbstractArray{<:Pair{K,V}}) where {K,V} = PairedArray{K,V}(A)
+PairedArray{K}(A::AbstractArray{<:Pair{<:Any,V}}) where {K,V} = PairedArray{K,V}(A)
 PairedArray{K,V,N}(A::AbstractArray{<:Pair,N}) where {K,V,N} = PairedArray{K,V}(A)
 function PairedArray{K,V}(A::AbstractArray{<:Pair}) where {K,V}
     B = PairedArray(similar(A, K), similar(A, V))
@@ -111,9 +111,12 @@ end
 for X in (:PairedArray, :PairedVector)
     @eval $X(pairs::Vararg{Pair{K,V}}) where {K,V} = PairedVector{K,V}(pairs)
     @eval $X(pairs::Tuple{Vararg{Pair{K,V}}}) where {K,V} = PairedVector{K,V}(pairs)
+    @eval $X{K}(pairs::Tuple{Vararg{Pair{<:Any,V}}}) where {K,V} = PairedVector{K,V}(pairs)
     @eval $X{K}(pairs::Vararg{Pair{<:Any,V}}) where {K,V} = PairedVector{K,V}(pairs)
+    @eval $X{K,V}(pairs::Vararg{Pair}) where {K,V} = PairedVector{K,V}(pairs)
 end
 PairedArray{K,V}(pairs::Tuple{Vararg{Pair}}) where {K,V} = PairedVector{K,V}(pairs)
+PairedArray{K,V,1}(pairs::Vararg{Pair}) where {K,V} = PairedVector{K,V}(pairs)
 PairedArray{K,V,1}(pairs::Tuple{Vararg{Pair}}) where {K,V} = PairedVector{K,V}(pairs)
 function PairedVector{K,V}(A::NTuple{N,Pair}) where {K,V,N}
     B = PairedArray(Vector{K}(undef, N), Vector{V}(undef, N))

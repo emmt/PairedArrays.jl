@@ -116,6 +116,15 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
     @test PairedArray{K}(A) === A
     @test PairedArray{K,V}(A) === A
     @test PairedArray{K,V,N}(A) === A
+    B = PairedArray{widen(K)}(A)
+    @test B !== A
+    @test B == A
+    B = PairedArray{widen(K),V}(A)
+    @test B !== A
+    @test B == A
+    B = PairedArray{widen(K),V,N}(A)
+    @test B !== A
+    @test B == A
     @test convert(PairedArray, A) === A
     @test convert(PairedArray{K}, A) === A
     @test convert(PairedArray{K,V}, A) === A
@@ -128,6 +137,14 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
     @test B isa PairedArray{_keytype(eltype(A)),Int16,ndims(A)}
     @test B.keys !== A.keys && B.vals !== A.vals
     @test B == A
+
+    # Constructors for uninitialized contents.
+    B = PairedArray{K,V}(undef, Int16(2), 3, 4)
+    @test B isa PairedArray{K,V,3}
+    @test size(B) === (2,3,4)
+    B = PairedArray{K,V,3}(undef, Int16(2), 3, 4)
+    @test B isa PairedArray{K,V,3}
+    @test size(B) === (2,3,4)
 
     # Copy constructor yields an independent copy.
     B = copy(A)
@@ -144,18 +161,46 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
     B = (:x=>1, :y=>2, :z=>3)
     C = collect(B)
     D = (B[i] for i in eachindex(B))
-    A = PairedArray(B...)
-    @test A isa PairedVector{Symbol,Int}
-    @test A == C
-    A = PairedArray(B)
-    @test A isa PairedVector{Symbol,Int}
-    @test A == C
-    A = PairedArray(C)
-    @test A isa PairedVector{Symbol,Int}
-    @test A == C
-    A = PairedVector{Symbol,Int}(D)
-    @test A isa PairedVector{Symbol,Int}
-    @test A == C
+    let A = PairedArray(B...)
+        @test A isa PairedVector{Symbol,Int}
+        @test A == C
+    end
+    let A = PairedArray{Symbol}(B...)
+        @test A isa PairedVector{Symbol,Int}
+        @test A == C
+    end
+    let A = PairedArray{Symbol,Int16}(B...)
+        @test A isa PairedVector{Symbol,Int16}
+        @test A == C
+    end
+    let A = PairedArray(B)
+        @test A isa PairedVector{Symbol,Int}
+        @test A == C
+    end
+    let A = PairedArray{Symbol}(B)
+        @test A isa PairedVector{Symbol,Int}
+        @test A == C
+    end
+    let A = PairedArray{Symbol,Int16}(B)
+        @test A isa PairedVector{Symbol,Int16}
+        @test A == C
+    end
+    let A = PairedArray(C)
+        @test A isa PairedVector{Symbol,Int}
+        @test A == C
+    end
+    let A = PairedArray{Symbol}(C)
+        @test A isa PairedVector{Symbol,Int}
+        @test A == C
+    end
+    let A = PairedArray{Symbol,Int16}(C)
+        @test A isa PairedVector{Symbol,Int16}
+        @test A == C
+    end
+    let A = PairedVector{Symbol,Int}(D)
+        @test A isa PairedVector{Symbol,Int}
+        @test A == C
+    end
 
     # Build from nothing
     @test_throws ArgumentError PairedArray()
