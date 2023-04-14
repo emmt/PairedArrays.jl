@@ -126,17 +126,22 @@ function PairedVector{K,V}(A::NTuple{N,Pair}) where {K,V,N}
     return B
 end
 
-PairedArray{K,V}(iter) where {K,V} = PairedVector{K,V}(iter)
-PairedVector{K,V}(iter) where {K,V} =
-    build(PairedVector{K,V}, Base.IteratorSize(iter), iter)
-function build(::Type{PairedVector{K,V}}, ::Base.SizeUnknown, iter) where {K,V}
+# Build paired arrays from iterators.
+PairedVector{K,V}(iter) where {K,V} = PairedArray{K,V,1}(iter)
+PairedMatrix{K,V}(iter) where {K,V} = PairedArray{K,V,2}(iter)
+PairedArray{K,V}(iter) where {K,V} = build(PairedArray{K,V}, Base.IteratorSize(iter), iter)
+PairedArray{K,V,N}(iter) where {K,V,N} = build(PairedArray{K,V,N}, Base.IteratorSize(iter), iter)
+
+function build(::Union{Type{PairedArray{K,V}},
+                       Type{PairedArray{K,V,1}}}, ::Base.SizeUnknown, iter) where {K,V}
     B = PairedVector{K,V}()
     for x in iter
         push!(B, x)
     end
     return B
 end
-function build(::Type{PairedVector{K,V}}, ::Base.HasLength, iter) where {K,V}
+function build(::Union{Type{PairedArray{K,V}},
+                       Type{PairedArray{K,V,1}}}, ::Base.HasLength, iter) where {K,V}
     len = length(iter)
     B = PairedArray(Vector{K}(undef, len), Vector{V}(undef, len))
     for (i,x) in enumerate(iter)
@@ -144,7 +149,8 @@ function build(::Type{PairedVector{K,V}}, ::Base.HasLength, iter) where {K,V}
     end
     return B
 end
-function build(::Type{PairedVector{K,V}}, ::Base.HasShape{N}, iter) where {K,V,N}
+function build(::Union{Type{PairedArray{K,V}},
+                       Type{PairedArray{K,V,N}}}, ::Base.HasShape{N}, iter) where {K,V,N}
     inds = axes(iter)
     all(r -> first(r) == 1, inds) || throw(ArgumentError("only 1-based indices are allowed"))
     dims = map(length, inds)

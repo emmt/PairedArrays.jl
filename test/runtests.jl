@@ -2,6 +2,7 @@ module TestingPairedArrays
 
 using PairedArrays
 using Test
+using Base: IteratorSize, SizeUnknown, HasLength, HasShape, IsInfinite
 
 struct MyPair{K,V}
     key::K
@@ -9,6 +10,17 @@ struct MyPair{K,V}
 end
 PairedArrays.pair(::Type{K}, ::Type{V}, x::MyPair) where {K,V} =
     Pair{K,V}(x.key, x.val)
+
+struct MyIterator{S,K,V,N,A}
+    parent::A
+    MyIterator{S}(A::AbstractArray{<:Pair{K,V},N}) where {S,K,V,N} = new{S,K,V,N,typeof(A)}(A)
+end
+Base.parent(A::MyIterator) = A.parent
+Base.iterate(A::MyIterator) = iterate(parent(A))
+Base.iterate(A::MyIterator, state) = iterate(parent(A), state)
+Base.IteratorSize(::Type{<:MyIterator{S}}) where {S} = S()
+Base.axes(A::MyIterator{S,K,V,N}) where {K,V,N,S<:HasShape{N}} = axes(parent(A))
+Base.length(A::MyIterator{S,K,V,N}) where {K,V,N,S<:Union{HasLength,HasShape{N}}} = length(parent(A))
 
 _keytype(x::Pair) = _keytype(typeof(x))
 _valtype(x::Pair) = _valtype(typeof(x))
@@ -173,6 +185,10 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
         @test A isa PairedVector{Symbol,Int16}
         @test A == C
     end
+    let A = PairedArray{Symbol,Int16,1}(B...)
+        @test A isa PairedVector{Symbol,Int16}
+        @test A == C
+    end
     let A = PairedArray(B)
         @test A isa PairedVector{Symbol,Int}
         @test A == C
@@ -185,6 +201,10 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
         @test A isa PairedVector{Symbol,Int16}
         @test A == C
     end
+    let A = PairedArray{Symbol,Int16,1}(B)
+        @test A isa PairedVector{Symbol,Int16}
+        @test A == C
+    end
     let A = PairedArray(C)
         @test A isa PairedVector{Symbol,Int}
         @test A == C
@@ -194,6 +214,10 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
         @test A == C
     end
     let A = PairedArray{Symbol,Int16}(C)
+        @test A isa PairedVector{Symbol,Int16}
+        @test A == C
+    end
+    let A = PairedArray{Symbol,Int16,1}(C)
         @test A isa PairedVector{Symbol,Int16}
         @test A == C
     end
@@ -236,6 +260,31 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
     @test length(A) == 0
     for x in B; push!(A, x); end
     @test A == C
+
+    # Build from iterators.
+    B = ["a" => 1 "b" => 2 "c" => 3;
+         "d" => 4 "e" => 5 "f" => 6]
+    K, V, N = _keytype(eltype(B)), _valtype(eltype(B)), ndims(B)
+    let iter = MyIterator{typeof(IteratorSize(B))}(B)
+        A = PairedArray{K,V}(iter)
+        @test A == B
+        A = PairedMatrix{K,V}(iter)
+        @test A == B
+    end
+    C = B[:] # flatten B
+    let iter = MyIterator{HasLength}(C)
+        A = PairedArray{K,V}(iter)
+        @test A == C
+        A = PairedVector{K,V}(iter)
+        @test A == C
+    end
+    let iter = MyIterator{SizeUnknown}(C)
+        A = PairedArray{K,V}(iter)
+        @test A == C
+        A = PairedVector{K,V}(iter)
+        @test A == C
+    end
+
 end
 
 end # module
