@@ -69,9 +69,9 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
     @test A[1] === (:x => 1)
     @test A[2] === (:y => 2)
     @test A[3] === (:z => 3)
-    A[1] = MyPair(:a,11)
-    A[2]     = MyPair(:b,12)
-    A[end]   = MyPair(:c,13)
+    A[1]   = MyPair(:a,11)
+    A[2]   = MyPair(:b,12)
+    A[end] = MyPair(:c,13)
     @test A[1] === (:a => 11)
     @test A[2] === (:b => 12)
     @test A[3] === (:c => 13)
@@ -139,7 +139,7 @@ _valtype(::Type{Pair{K,V}}) where {K,V} = V
     @test B == A
 
     # Constructors for uninitialized contents.
-    B = PairedArray{K,V}(undef, Int16(2), 3, 4)
+    B = PairedArray{K,V}(undef, 2, 3, 4) # FIXME: crash Julia < 1.2 with `Int16(2), 3, 4`
     @test B isa PairedArray{K,V,3}
     @test size(B) === (2,3,4)
     B = PairedArray{K,V,3}(undef, Int16(2), 3, 4)
