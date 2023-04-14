@@ -4,3 +4,6 @@
 
 - Provides aliases `PairedVector{K,V}` and `PairedMatrix{K,V}` for
   `PairedArray{K,V,1}` and `PairedArray{K,V,2}`.
+
+- Other packages may extend method `PairedArrays.pair(K,V,x)` for specific
+  `typeof(x)` to convert `x` into a pair of type `Pair{K,V}`.

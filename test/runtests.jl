@@ -3,6 +3,13 @@ module TestingPairedArrays
 using PairedArrays
 using Test
 
+struct MyPair{K,V}
+    key::K
+    val::V
+end
+PairedArrays.pair(::Type{K}, ::Type{V}, x::MyPair) where {K,V} =
+    Pair{K,V}(x.key, x.val)
+
 @testset "PairedArrays.jl" begin
     # First try with linear indices.
     keys = [:a, :b, :c]
@@ -42,6 +49,28 @@ using Test
     @test A[2] == (:z => 42)
     push!(A, :w => 0x0ff) # push so as to force conversion
     @test A[end] == (:w => 255)
+
+    # Check pushing and setting argument that is not directly a Pair.
+    A = PairedArray(Symbol[], Int[])
+    @test A isa PairedVector{Symbol,Int}
+    @test length(A) == 0
+    push!(A, MyPair(:x,1))
+    @test length(A) == 1
+    @test A[1] == (:x => 1)
+    push!(A, MyPair(:y,2))
+    @test length(A) == 2
+    push!(A, MyPair(:z,3))
+    @test length(A) == 3
+    @test A[1] === (:x => 1)
+    @test A[2] === (:y => 2)
+    @test A[3] === (:z => 3)
+    A[begin] = MyPair(:a,11)
+    A[2]     = MyPair(:b,12)
+    A[end]   = MyPair(:c,13)
+    @test A[1] === (:a => 11)
+    @test A[2] === (:b => 12)
+    @test A[3] === (:c => 13)
+
     # Now try with Cartesian indices. We use views to make sure that Cartesian
     # indexing is used.
     keys = view(rand(Int16, 2,3,4), :, 2, :)
@@ -67,6 +96,12 @@ using Test
         A[i,j] = (i => j)
         @test A[i,j] == (i => j)
     end
+    # Idem with non-standard pairs.
+    for i in I, j in J
+        A[i,j] = MyPair(-i, -j)
+        @test A[i,j] == (-i => -j)
+    end
+
 end
 
 end # module

@@ -5,14 +5,16 @@ export
     PairedVector,
     PairedMatrix
 
+using Base: @propagate_inbounds
+
 """
     PairedArray(keys, vals) -> A
 
-builds an array `A` such that the syntax `A[i]` yields the pair `keys[i] =>
-vals[i]` while `A[i] = key => val` is equivalent to `keys[i] = key` and
-`vals[i] = val`. In fact, the syntax `A[i] = x` is supported for any `x` that
-can be converted to an instance of `Pair{K,V}`. Setting elements of a paired
-array requires that `K` and `V` be both writable.
+builds an array `A` such that the syntax `A[i...]` yields the pair `keys[i...]
+=> vals[i...]` while `A[i...] = (key => val)` is equivalent to `keys[i...] =
+key` and `vals[i...] = val`. In fact, the syntax `A[i...] = x` is supported for
+any `x` that can be converted to an instance of `Pair{K,V}`. Setting elements
+of a paired array requires that `keys` and `vals` be both writable.
 
 A paired array is as fast but has less storage requirements (because data
 alignment constraints are relaxed) than an array of pairs which could be built
@@ -87,14 +89,34 @@ end
     return A
 end
 
-Base.push!(A::PairedArray{K,V}, x) where {K,V} =
-    push!(A, convert(Pair{K,V}, x)::Pair{K,V})
-
-function Base.push!(A::PairedArray{K,V}, x::Pair{K,V}) where {K,V}
+function Base.push!(A::PairedVector, x::Pair)
     push!(A.keys, x.first)
     push!(A.vals, x.second)
     return A
 end
+
+"""
+    PairedArrays.pair(K,V,x) -> p::Pair{K,V}
+
+yields argument `x` converted to a pair `p` of type `Pair{K,V}`. By default,
+this method amounts to evaluating `convert(Pair{K,V},x)::Pair`, but is intended
+to be extended for specific `typeof(x)` by other packages for their own types.
+To avoid stack overflow errors (due to infinite recursive calls), the extend
+methods shall insure that they return a `Pair`.
+
+"""
+pair(::Type{K}, ::Type{V}, x::Pair{K,V}) where {K,V} = x
+pair(::Type{K}, ::Type{V}, x) where {K,V} = convert(Pair{K,V}, x)::Pair
+
+@inline @propagate_inbounds function Base.setindex!(A::PairedArrayLinear{K,V},
+                                                    x, i::Int) where {K,V}
+    return setindex!(A, pair(K,V,x), i)
+end
+@inline @propagate_inbounds function Base.setindex!(A::PairedArrayCartesian{K,V,N},
+                                                    x, I::Vararg{Int,N}) where {K,V,N}
+    return setindex!(A, pair(K,V,x), I...)
+end
+Base.push!(A::PairedArray{K,V}, x) where {K,V} = push!(A, pair(K,V,x))
 
 function Base.resize!(A::PairedArray, newlen::Integer)
     # First try to resize keys, then vals. If the latter fails, restore the
